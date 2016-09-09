@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "centos/7"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.gui = false
+    vb.cpus = 4
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    sudo yum groupinstall -y -q "Development Tools"
+    sudo yum install -y -q vim tmux openssl-devel ncurses-devel ncurses
+
+    # unison
+    sudo yum install -y -q ocaml ocaml-camlp4-devel ctags ctags-etags # required for installing unison from http://www.seas.upenn.edu/~bcpierce/unison//download/releases/stable/
+    sudo curl http://www.seas.upenn.edu/~bcpierce/unison//download/releases/stable/unison-2.48.4.tar.gz -o /tmp/unison-2.48.4.tar.gz
+    sudo mkdir -p /usr/local/opt/unison-2.48.4
+    sudo tar zxf /tmp/unison-2.48.4.tar.gz -C /usr/local/opt/unison-2.48.4
+    sudo chown -R vagrant:vagrant /usr/local/opt/unison-2.48.4/src/
+    make -s -C /usr/local/opt/unison-2.48.4/src/
+    sudo ln -s /usr/local/opt/unison-2.48.4/src/unison /usr/local/sbin/unison
+    sudo ln -s /usr/local/opt/unison-2.48.4/src/unison /usr/bin/unison
+
+    # fish shell
+    sudo curl -s http://download.opensuse.org/repositories/shells:/fish:/release:/2/CentOS_6/shells:fish:release:2.repo -o/etc/yum.repos.d/fish.repo
+    sudo yum install -y -q fish
+    sudo chsh -s /usr/bin/fish vagrant
+
+    # CMake deps
+    sudo yum install -y libcurl-devel bzip2-devel libarchive-devel expat-devel
+
+    # eBPF deps
+    sudo yum install -y cmake python2-devel elfutils-libelf-devel-static libxml2-devel
+  SHELL
+
+  # Required configs
+  config.unison.host_folder = "src/"  #relative to the folder your Vagrantfile is in
+  config.unison.guest_folder = "src/" #relative to the vagrant home folder (e.g. /home/vagrant)
+
+  # Optional configs
+  # File patterns to ignore when syncing. Ensure you don't have spaces between the commas!
+  config.unison.ignore = "Name {.DS_Store,.git,node_modules,linux-4.7.3/}" # Default: none
+
+  # Change polling interval (in seconds) at which to sync changes
+  config.unison.repeat = 10 # Default: 1
+end
